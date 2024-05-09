@@ -54,6 +54,13 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
                 )
             }
 
+            "saveLosslessImageToGallery" -> {
+                val image = call.argument<ByteArray?>("imageBytes")
+                val albumName = call.argument<String?>("albumName")
+                val name = call.argument<String?>("name")
+                result.success(saveLosslessImageToGallery(image, name, albumName))
+            }
+
             "saveFileToGallery" -> {
                 val path = call.argument<String?>("file")
                 val name = call.argument<String?>("name")
@@ -69,10 +76,12 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
         methodChannel.setMethodCallHandler(null);
     }
 
-    private fun generateUri(extension: String = "", name: String? = null): Uri? {
-        var fileName = name ?: System.currentTimeMillis().toString()
+    private fun generateUri(extension: String = "", name: String? = null, albumName: String? = null): Uri? {
+        val fileName = name ?: System.currentTimeMillis().toString()
         val mimeType = getMIMEType(extension)
         val isVideo = mimeType?.startsWith("video")==true
+
+        val path =  if (albumName == null) Environment.DIRECTORY_PICTURES else  "${Environment.DIRECTORY_PICTURES}/$albumName"
 
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // >= android 10
@@ -86,7 +95,7 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
                 put(
                     MediaStore.MediaColumns.RELATIVE_PATH, when {
                         isVideo -> Environment.DIRECTORY_MOVIES
-                        else -> Environment.DIRECTORY_PICTURES
+                        else -> path
                     }
                 )
                 if (!TextUtils.isEmpty(mimeType)) {
@@ -142,6 +151,41 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
             val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
             mediaScanIntent.data = fileUri
             context.sendBroadcast(mediaScanIntent)
+        }
+    }
+
+    private fun saveLosslessImageToGallery(
+        data: ByteArray?,
+        name: String?,
+        album: String?
+    ): HashMap<String, Any?> {
+        // check applicationContext
+        val context = applicationContext
+            ?: return SaveResultModel(false, null, "applicationContext null").toHashMap()
+        var fileUri: Uri? = null
+        var fos: OutputStream? = null
+        var success = false
+        try {
+            fileUri = generateUri("jpg", name = name, album)
+            if (fileUri != null) {
+                fos = context.contentResolver.openOutputStream(fileUri)
+                if (fos != null) {
+                    println("ImageGallerySaverPlugin, name: $name, album: $album")
+                    fos.write(data)
+                    fos.flush()
+                    success = true
+                }
+            }
+        } catch (e: IOException) {
+            SaveResultModel(false, null, e.toString()).toHashMap()
+        } finally {
+            fos?.close()
+        }
+        return if (success) {
+            sendBroadcast(context, fileUri)
+            SaveResultModel(fileUri.toString().isNotEmpty(), fileUri.toString(), null).toHashMap()
+        } else {
+            SaveResultModel(false, null, "saveImageToGallery fail").toHashMap()
         }
     }
 

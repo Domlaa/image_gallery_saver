@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -60,6 +61,15 @@ class _MyHomePageState extends State<MyHomePage> {
               Container(
                 padding: EdgeInsets.only(top: 15),
                 child: ElevatedButton(
+                  onPressed: _saveAssetImage,
+                  child: Text("Save Assets Image"),
+                ),
+                width: 300,
+                height: 44,
+              ),
+              Container(
+                padding: EdgeInsets.only(top: 15),
+                child: ElevatedButton(
                   onPressed: _saveLocalImage,
                   child: Text("Save Local Image"),
                 ),
@@ -98,15 +108,25 @@ class _MyHomePageState extends State<MyHomePage> {
         ));
   }
 
+  _saveAssetImage() async {
+    ByteData logoByte = await rootBundle.load('assets/img/image.jpg');
+    final byteData = logoByte.buffer.asUint8List();
+    final size = byteData.length / (1024 * 1024);
+    print("size = $size mb");
+    final result = await ImageGallerySaver.saveLosslessImageToGallery(byteData, name: "exif133", albumName: "hjkl");
+    print(result);
+    Utils.toast(result.toString());
+  }
+
   _saveLocalImage() async {
     RenderRepaintBoundary boundary =
-        _globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    _globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
     ui.Image image = await boundary.toImage();
     ByteData? byteData =
-        await (image.toByteData(format: ui.ImageByteFormat.png));
+    await (image.toByteData(format: ui.ImageByteFormat.png));
     if (byteData != null) {
       final result =
-          await ImageGallerySaver.saveImage(byteData.buffer.asUint8List());
+      await ImageGallerySaver.saveImage(byteData.buffer.asUint8List());
       print(result);
       Utils.toast(result.toString());
     }

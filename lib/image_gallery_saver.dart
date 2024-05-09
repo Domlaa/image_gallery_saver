@@ -24,6 +24,17 @@ class ImageGallerySaver {
     return result;
   }
 
+  static FutureOr<dynamic> saveLosslessImageToGallery(Uint8List imageBytes,
+      {String? name, String? albumName}) async {
+    final result =
+    await _channel.invokeMethod('saveLosslessImageToGallery', <String, dynamic>{
+      'imageBytes': imageBytes,
+      'name': name,
+      'albumName': albumName,
+    });
+    return result;
+  }
+
   /// Save the PNG，JPG，JPEG image or video located at [file] to the local device media gallery.
   static Future saveFile(String file,
       {String? name, bool isReturnPathOfIOS = false}) async {
